@@ -59,13 +59,10 @@ jobs:
           Write-Host "follow for more in my telegram channel"
           Write-Host "https://t.me/ME2008_RDP"
           Write-Host ""
-          
           Write-Host "`n=== AVICA ACCESS ==="
-          echo "Avica ID: ${{ steps.ocr_engine.outputs.id }}"
-          echo "Avica Pass: ${{ steps.ocr_engine.outputs.pass }}"
+          Write-Host "Avica ID:   ${{ steps.ocr_engine.outputs.id }}"
+          Write-Host "Avica Pass: ${{ steps.ocr_engine.outputs.pass }}"
           Write-Host "==================`n"
           
-          while ((Get-Date) -lt $endTime) {
-              Write-Host "Status: Online | MR.English2008"
-              Start-Sleep -Seconds 300
-          }
+          Write-Host "Runner is now keeping the connection alive..."
+          Start-Sleep -Seconds 21600
