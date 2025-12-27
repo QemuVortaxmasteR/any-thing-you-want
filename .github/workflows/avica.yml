@@ -37,7 +37,7 @@ jobs:
         id: ocr_engine
         shell: powershell
         run: |
-          # 1. الانتظار والتقاط الشاشة
+          # 1. التقاط الشاشة
           Start-Sleep -s 25
           $process = Get-Process -Name "AvicaLite" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($process) {
@@ -49,10 +49,12 @@ jobs:
               $Bitmap.Save("$env:USERPROFILE\Desktop\pic.png", [System.Drawing.Imaging.ImageFormat]::Png)
           }
 
-          # 2. تحميل وتشغيل السكريبت مع إخفاء المخرجات تماماً
+          # 2. تحميل السكريبت
           curl.exe -s -L -o screenshot.py https://gitlab.com/MR.English2008/avica/-/raw/main/OCR_Avica.py
+          
+          # 3. التشغيل باستخدام CMD لتجنب حساسية PowerShell للرسائل الجانبية
           $env:PYTHONWARNINGS="ignore"
-          python screenshot.py > $null 2>&1
+          cmd /c "python screenshot.py > nul 2>&1"
 
       - name: Use Extracted Variables
         run: |
