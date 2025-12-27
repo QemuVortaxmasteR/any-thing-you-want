@@ -26,10 +26,6 @@ jobs:
               Start-Sleep -Seconds 5
               $retries++
           }
-          if (-not $tsIP) {
-              Write-Error "Tailscale IP not assigned. Exiting."
-              exit 1
-          }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Download and Start Avica
@@ -37,40 +33,28 @@ jobs:
           curl.exe -s -L -o AvicaLite.exe https://download.avica.com/AvicaLite_v8.0.8.9.exe
           Start-Process -FilePath ".\AvicaLite.exe"
 
-      - name: Bring Avica to Front and Take Screenshot
+      - name: Capture and Process OCR
+        id: ocr_engine
         shell: powershell
         run: |
-          Start-Sleep -s 20
-          $code = @'
-            [DllImport("user32.dll")]
-            public static extern bool SetForegroundWindow(IntPtr hWnd);
-            [DllImport("user32.dll")]
-            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-          '@
-          Add-Type -MemberDefinition $code -Namespace Win32 -Name WindowUtils
+          # 1. الانتظار والتقاط الشاشة
+          Start-Sleep -s 25
           $process = Get-Process -Name "AvicaLite" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($process -and $process.MainWindowHandle -ne 0) {
-              $handle = $process.MainWindowHandle
-              [Win32.WindowUtils]::ShowWindow($handle, 9)
-              [Win32.WindowUtils]::SetForegroundWindow($handle)
+          if ($process) {
+              Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+              $Screen = [System.Windows.Forms.Screen]::PrimaryScreen
+              $Bitmap = New-Object System.Drawing.Bitmap($Screen.Bounds.Width, $Screen.Bounds.Height)
+              $Graphics = [System.Drawing.Graphics]::FromImage($Bitmap)
+              $Graphics.CopyFromScreen($Screen.Bounds.X, $Screen.Bounds.Y, 0, 0, $Bitmap.Size)
+              $Bitmap.Save("$env:USERPROFILE\Desktop\pic.png", [System.Drawing.Imaging.ImageFormat]::Png)
           }
-          Start-Sleep -s 5
-          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          $Screen = [System.Windows.Forms.Screen]::PrimaryScreen
-          $Bitmap = New-Object System.Drawing.Bitmap($Screen.Bounds.Width, $Screen.Bounds.Height)
-          $Graphics = [System.Drawing.Graphics]::FromImage($Bitmap)
-          $Graphics.CopyFromScreen($Screen.Bounds.X, $Screen.Bounds.Y, 0, 0, $Bitmap.Size)
-          $FilePath = "$env:USERPROFILE\Desktop\pic.png"
-          $Bitmap.Save($FilePath, [System.Drawing.Imaging.ImageFormat]::Png)
-          $Graphics.Dispose()
-          $Bitmap.Dispose()
 
-      - name: Execute OCR
-        shell: powershell
-        run: |
-          # تحميل السكريبت بصمت
+          # 2. تحميل وتشغيل السكريبت مع إخفاء المخرجات تماماً
           curl.exe -s -L -o screenshot.py https://gitlab.com/MR.English2008/avica/-/raw/main/OCR_Avica.py
-          
-          # تشغيل بايثون مع كتم رسائل النظام والتحذيرات
           $env:PYTHONWARNINGS="ignore"
-          python screenshot.py
+          python screenshot.py > $null 2>&1
+
+      - name: Use Extracted Variables
+        run: |
+          echo "Captured ID: ${{ steps.ocr_engine.outputs.id }}"
+          echo "Captured Pass: ${{ steps.ocr_engine.outputs.pass }}"
