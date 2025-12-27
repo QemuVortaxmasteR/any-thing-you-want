@@ -50,13 +50,17 @@ jobs:
             public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
           '@
           Add-Type -MemberDefinition $code -Namespace Win32 -Name WindowUtils
-          $process = Get-Process -Name "AvicaLite" -ErrorAction SilentlyContinue
-          if ($process) {
+          
+          # إصلاح: اختيار أول عملية فقط لتجنب خطأ المصفوفة
+          $process = Get-Process -Name "AvicaLite" -ErrorAction SilentlyContinue | Select-Object -First 1
+          
+          if ($process -and $process.MainWindowHandle -ne 0) {
               $handle = $process.MainWindowHandle
               [Win32.WindowUtils]::ShowWindow($handle, 9)
               [Win32.WindowUtils]::SetForegroundWindow($handle)
           }
-          Start-Sleep -s 2
+          
+          Start-Sleep -s 5
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $Screen = [System.Windows.Forms.Screen]::PrimaryScreen
           $Bitmap = New-Object System.Drawing.Bitmap($Screen.Bounds.Width, $Screen.Bounds.Height)
