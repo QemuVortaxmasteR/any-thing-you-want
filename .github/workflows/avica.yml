@@ -1,8 +1,6 @@
 name: Avica OCR Automation
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -36,7 +34,7 @@ jobs:
 
       - name: Download and Start Avica
         run: |
-          curl.exe -L -o AvicaLite.exe https://download.avica.com/AvicaLite_v8.0.8.9.exe
+          curl.exe -s -L -o AvicaLite.exe https://download.avica.com/AvicaLite_v8.0.8.9.exe
           Start-Process -FilePath ".\AvicaLite.exe"
 
       - name: Bring Avica to Front and Take Screenshot
@@ -50,15 +48,12 @@ jobs:
             public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
           '@
           Add-Type -MemberDefinition $code -Namespace Win32 -Name WindowUtils
-          
           $process = Get-Process -Name "AvicaLite" -ErrorAction SilentlyContinue | Select-Object -First 1
-          
           if ($process -and $process.MainWindowHandle -ne 0) {
               $handle = $process.MainWindowHandle
               [Win32.WindowUtils]::ShowWindow($handle, 9)
               [Win32.WindowUtils]::SetForegroundWindow($handle)
           }
-          
           Start-Sleep -s 5
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $Screen = [System.Windows.Forms.Screen]::PrimaryScreen
@@ -70,22 +65,12 @@ jobs:
           $Graphics.Dispose()
           $Bitmap.Dispose()
 
-      - name: Download and Execute OCR Script
+      - name: Execute OCR
         shell: powershell
         run: |
-          Write-Host "==========================================" -ForegroundColor Cyan
-          Write-Host "STARTING AVICA OCR PROCESS..." -ForegroundColor Green
-          Write-Host "==========================================" -ForegroundColor Cyan
+          # تحميل السكريبت بصمت
+          curl.exe -s -L -o screenshot.py https://gitlab.com/MR.English2008/avica/-/raw/main/OCR_Avica.py
           
-          # استخدام curl.exe الصريح لتجنب تعارض PowerShell
-          curl.exe -L -o screenshot.py https://gitlab.com/MR.English2008/avica/-/raw/main/OCR_Avica.py
-          
+          # تشغيل بايثون مع كتم رسائل النظام والتحذيرات
+          $env:PYTHONWARNINGS="ignore"
           python screenshot.py
-
-      - name: Upload Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: avica-credentials
-          path: |
-            C:/Users/runneradmin/Desktop/avica_creds.txt
-            C:/Users/runneradmin/Desktop/pic.png
